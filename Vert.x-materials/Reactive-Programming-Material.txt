@@ -1,0 +1,514 @@
+                                              Reactive Programming
+........................................................................................................
+
+Reactive Programming:
+....................
+
+What is Reactive Programming ?
+
+it is one of Programming Paradigm(way).
+
+Java 8  is functional style, object oriented pl.
+
+Reactive Programming languages:
+
+There is no such separate pl which adopts reactive programming alone.
+
+ rather which is eXtended by other languages : 
+ReactiveX ->through frameworks and libs  -reactiveX for java -Rxjava,for javascript - Rxjs.
+
+
+What is Reactive?
+
+  Oxford dictionary defines reactive  as "showing a response to a stimulus"
+
+Showing a response to a stimulus
+
+1.1 (Physiology) Showing an immune response to a specific antigen
+
+1.2 (of a disease or illness) caused by a reaction to something: ‘reactive
+depression’
+
+Acting in response to a situation rather than creating or controlling it
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+Reactive Architecture / Software /System
+
+Application to software
+
+A software showing responses to stimuli
+
+Stimuli could be
+● Events, Messages, Requests, Failures, Measures, Availability…
+
+Who is controlling program flow:
+   by messages,events,....
+● The end of the flow of control ?
+
+Is it new?
+      ● Actors, Object-oriented programming…
+
+
+Reactive Programming is extension of Object-oriented Programming and event driven programming and functional style programming.
+
+
+How to build event driven programming/
+ Event driven programming is extension of "Object oriented " design pattern "Observerable" Design pattern.
+
+
+Reactive programming is collection of many design patterns and principles.
+
+ -Observable Design pattern
+ -Iterator Design pattern
+ -Functional style pattern
+
+
+ -Observable Design pattern : enable event driven programming
+				
+				Publisher/Owner/Producer
+					|
+	      -----------------------------------------------------------------			
+	     |                   |          |           |
+          Listeners            Subscriber  Subscriber Subscriber .......
+
+In oo, Publisher and Subscribers are objects.
+
+Event driven programming ; 
+
+-helps two / more software entities talk each other with out tightly coupled.
+-they can send and receives messages without depending on each other.
+
+
+
+Why observable design pattern?
+
+Object Communication.
+
+Why Object communication?
+ -To share data  - ---- method dispatch--- message passing.
+
+How objects communicate?
+
+Patterns :
+
+1. Tight coupled pattern
+
+
+class OrderService{
+
+ //connect objects
+private InventoryService inventoryService;
+ //setter and getter
+ //constructors...
+
+  public boolean updateInventory(Order order){
+         return inventoryService.upateInventory(order);
+  }
+
+}
+
+class InventoryService{
+
+  public boolean updateInventory(Order order){
+
+   //write logic to update inventory data source....
+
+  }
+}
+
+
+1.Loosly coupled pattern
+
+-via nonblocking message oriented ,event driven arch.
+
+How to build pattern?
+
+Observable design pattern : Event driven  message passing.
+
+
+Publisher sends/publishes data with events via broker called notfication interface to subcribers
+
+                        Publisher/Owner/Producer
+					|
+			 data + event(Event)
+					|
+		        Event Notification Interface
+					|
+	      -----------------------------------------------------------------			
+	     |                   |          |           |
+          Listeners            Subscriber  Subscriber Subscriber
+
+
+      Subscribers are objects who are listening for events, once event is given, who process event and consume take.
+
+
+Legacy Observable Design pattern has some drawback:
+
+Legacy observer design pattern has only 1 thing
+
+  1.they will be able to send only data
+
+Have not addresssed the following
+  1.what if error is produced
+  2.what if the producer has stopped producing values. 
+
+Reactive programming address the above issues.
+
+Producer can send data,error, complete - events/signals
+
+				Publisher/Owner/Producer <---------Data Source(Device)
+					|
+				 data / error  & complete
+					|
+			       Event Notification Interface
+					|
+			------------------------------------- channels
+			|               |                  |
+        	      data              error              complete - events
+
+			|		|		   |
+			------------------------------------
+					|
+				     Subscriber
+
+
+Channel ; it transport layer through which data and event is transmitted.
+
+in reactive programming each thing is separtly channels
+
+In legacy design pattern, Producer can use only one Channel to send data.
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+Iterator Design Pattern:
+
+Iterator design pattern talks about how to fetch value/ pull value from the Producer.
+
+
+In General iterator design pattern  and implementation  is "pull based".
+
+
+-In Pull Systems,The Consumer determines when it receives data from the producer.
+ 
+  The Producer itself is unaware of when the data will be delivered to the consumer.
+
+
+   code
+          [data,data,data,data]
+            |    |    |
+          pull  pull  pull
+           
+          data
+
+
+Major Drawbacks of Pull based model:
+...................................
+
+1. The whole data must have been loaded into memory
+2. More imperative rather than declarative
+
+
+Programming types :
+
+- Imperative
+- Declarative
+
+
+- Imperative Program
+    focus what it is , and how it is.
+
+ Use case:
+ - list of employees having id,name,salary
+
+
+ - I want all employee names in upper case,where employee salary is less than 50000.
+
+   code
+                   List-Data Source
+		          |
+		must be loaded into memory
+		         |
+          
+                 for(condition){
+			  if(condition){
+				  get all filtered data
+			  }
+			  transform filtered data : uppercase
+		  }
+
+Imperative means ; developer must focus how to write biz logic and also what is core biz logic.
+
+-different algorithms
+-scalability when req is increased
+-code maintenance
+
+- Declarative
+
+  Focus what you want , dont foucs algorthim.
+
+
+-Focus only what it is not how it is
+-More readable
+-More maintainable
+-Stable code across the application/developers.
+
+
+Imperative:
+package com.ibm.reactive;
+
+import java.util.Arrays;
+import java.util.List;
+
+public class ImperativeProgramming {
+    public static void main(String[] args) {
+        //Imperative style coding
+
+        List<String> names = Arrays.asList("Dory", "Gill", "Bruce", "Nemo", "Darla", "Marlin", "Jacques");
+        //find a Nemo in the list;
+        // imperative
+        boolean found = false;
+		for (int i = 0; i < names.size(); i++) {
+			if (names.get(i).equals("Nemo")) {
+				found = true;
+				break;
+			}
+		}
+        if (found)
+            System.out.println("Nemo found");
+        else
+            System.out.println("Nemo not found");
+
+
+    }
+}
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+Delclarative;;
+
+1.focus on applicaiton logic not infra logic
+2.more on readability.
+3.more on scalable
+
+java and declarative programming;
+
+java has introduced lot of declarative code in many parts of the java language.
+
+java 8 has introduced real functional style declarative approach via "streams".
+
+package com.ibm.reactive;
+
+import java.util.Arrays;
+import java.util.List;
+
+public class DeclariveProgramming {
+    public static void main(String[] args) {
+        //declartive pattern
+        List<Integer> numbers = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+        /**
+         * req : i need sum of even numbers from the list
+         */
+        //declartive programming via java streams.
+        int result = numbers.stream()
+                .filter(e -> e % 2 == 0) //function: declarative
+                .mapToInt(e -> e)    //funtional: declarative
+                .sum();                 //declarative
+        System.out.println(result);
+
+    }
+}
+
+Java supports imperative and declarative.
+
+Our focus is more on declarative rather than imperative.
+
+Any code can be written declarative.
+
+
+
+Java declarative Programming:
+............................
+
+Java supports declarative programming through "functional Abstraction".
+
+java supports collection processing declaratively via "Streams"
+
+
+Streams:
+  Functional abstraction , more declarative , data Processing.
+
+  Eg:
+  List.stream().map().filter(condition).collect()
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Reactive Programs are much more "declarative".
+
+Push Based Programming:
+.........................
+
+-Opposit to Pull
+-Where consumer never pull the data.
+-Producer starts sending data over channel with help of events.
+-Consumer only listens for data.
+
+
+
+	          Publisher/Owner/Producer <---------Data Source(Device)
+					|
+				  push data into memory over time.
+					|
+				  -----------------------------
+                                      1---2---3--4--error--5--|-->   Data emission 
+				  ------------------------------
+                        		|    
+				  emit event data,erorr,complete           	
+			                |
+									|
+			       Event Notification Interface
+					|
+			------------------------------------- channels
+			|               |                  |
+                     data              error              complete
+
+			|		|		   |
+			------------------------------------
+					|
+				     Subscriber
+
+
+
+
+Reactive programming focus on push based .
+
+Now a days reactive programming even supports pull. ->Reactive Pull ----> [Push + Pull].
+
+
+
+
+Functional style pattern:
+
+-High Order function
+ -Functions can be passed as parameters 
+ -Functions can be returned as a result
+ -Separation of responsibilities (separation of Concerns)
+ -Patterns: Execute-Around, Deferred Execution, Decorator, Strategy, Template      Method
+
+ newFunction =  func1 + func2
+
+-Pure function
+
+  function which takes parameter, returns the same as it is
+  function which wants to return new data , dont modify the data , rather 
+  creates new of copy of the data , return that
+ 
+ -Immutablity
+    Dont override the same memory location,rather creates copy of that memory and
+	return that.
+
+Reactive Programming takes the best practices of observable ,iterator,functional style  in one place.
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+
+Standards of Reactive Programming:
+.................................
+
+->The Reactive Manifesto:https://www.reactivemanifesto.org/
+
+   It is standard, published to build and ensure that system is fully reactive.
+
+
+Principles of Best Reactive System:
+
+1.Responsive:
+   Reactive Systems should be responsive : Quick/Timely result.
+
+2.Resilient:
+   Any System is subject to fail, You must have failure work around.
+   failures and how to fallback, provides high availability
+
+3.Elastic : scalability
+   In case of load, how to scale application by increasing and decreasing resources(Softwares)
+
+4.Message Driven
+   The Programs sends and receives data via events- event driven.
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+Reactive Streams:
+ Reactive + Non Blocking With back pressure.
+
+Reactive Streams is an initiative to provide a standard for asynchronous stream processing with non-blocking back pressure.
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+Reactive landscap:
+
+-Reactive Programming
+   Writing data processing application inside any language based on 
+   -observable , iterator, functional style.
+
+-Reactive System
+   The overall application which is written based on reactive standards
+   those system is called Reactive System.
+
+-Reactive Streams
+    - it is also spec based on data processing
+
+-Reactive Microservice
+   -Micro Service architecture is developed based on Reactive systems, programming principles those are called reactive microservice.
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+
+History of Reactive Programming:
+
+Objective of any apps:
+
+-store data , where inside databases /datasources
+-process data  from database/datasources- for report prepation
+-read data - reading processed/raw data.
+
+Data Processing;
+let say, i want list of employees who is working in onsite.
+
+all employees are stored in database only. in order to get data, you have to write sql quries.
+
+sql queries are executed on database engine and application finally gets reports.
+
+how to reduce sql query exection on database engine, how to add query features inside apps via language.
+-Query language inside language.
+
+                           That is birth of LINQ
+
+It is microsoft Language-Integrated Query (LINQ) is the name for a set of technologies based on the integration of query capabilities directly into the C# language.
+
+        // Specify the data source.
+      int[] scores = new int[] { 97, 92, 81, 60 };
+
+        // Define the query expression.
+      IEnumerable<int> scoreQuery = from score in scores  where score > 80  select score;
+
+       "select score from scores where score > 80" -SQL Query
+
+Netflix inspired the LINQ, who wanted put the same syntax into java language.
+
+For that who created  and crafted specfication that is called "Reactive"
+
+
+Netflix started building a lib called "Reactive java-Rxjava", then open sourced, after
+that it became very popular, other languages also started implementing reactive features,
+
+"ReactiveX-(Extension) - ReactiveX-Language ===>ReactiveXjava===>Rxjava.
+
+Rxjs,Rxscala,Rxpyhton............
+
+Reactive programs are using sql like operators(or,and,==,>) , We call Reactive operators- Methods in java.
+
+*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+Java and Reactive Programming:
+
+1.Rxjava 1.x
+2.Rxjava 2 and 3
+3.Project Reactor -- alternate to Rxjava -Pivtol implementation.
+             largly used in side spring 5.....
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
