@@ -1,4 +1,4 @@
-
+d
 What is functional Programming?
 -Functional programming is one the programming paradigm.
 
