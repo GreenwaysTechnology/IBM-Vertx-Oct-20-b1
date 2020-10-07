@@ -1,0 +1,1142 @@
+Vert.x:
+.......
+
+What is Vertx?
+
+Eclipse Vert.x is a tool-kit for building reactive applications on the JVM.
+
+Vertx is functional,event driven,object oriented,reactive,non blocking io and async tookit for building "distributed application - Micro service" on java virtual machine.
+
+Vert.x is Polyglot tool kit for building micro services application.
+
+Verx allows different programming languages can talk each other.
+
+
+Polyglot means multi technology /language.
+
+ Vertx supports Polyglot on jvm.
+
+Does JVM support multi language(Polyglot)?
+
+   Yes!.
+
+2002,JCP published  specfication called "multi language" on jvm.
+ 
+Groovy, was the first reference implementation of that spec 
+Kotlin
+Jython - python + java
+
+Vetx PolyGlot
+
+You can use Vert.x with multiple languages including Java, Kotlin, JavaScript, Groovy, Ruby and Scala.
+
+Vert.x doesn't preach about what language is best — you choose the languages you want based on the task at hand and the skill-set of your team.
+
+We provide idiomatic APIs for every language that Vert.x supports.
+
+
+ How these languages works on jvm/
+   jvm contract is only "byte code"
+
+             groovy,kotlin,javascript,scala,ruby.......
+	                |
+                    compilers
+                        |
+                      .class
+                        |
+                       jvm
+
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+non blocking io and async :
+...........................
+
+IO:
+
+Hardware devices typically provide the ability to input data into the computer or output data from the computer.
+
+To simplify the ability to support a variety of hardware devices, standardized application programming interfaces (API) are used.
+
+Application programs use the "System Call API" to request one of a finite set of preset I/O requests from the Operating System.
+
+The Operating System uses algorithms for processing the request that are device independent.
+
+
+The Operating System uses another API to request data from the device driver.
+
+The device driver is third party software that knows how to interact with the specific device to perform the I/O.
+
+Sometimes we have a layering of device drivers where one device driver will call on another device driver to facilitate the I/O.
+
+ An example of this is when devices are connected to a USB port. The driver for the device will make use of the USB device driver to facilitate passing data to and from the device.
+
+
+IO SYSTEM CALL Api:
+
+Java - io api
+ |
+jvm
+jni -  io api - java native interface api , which low level api to os
+|
+os
+|
+system calls - os io api
+|
+device driver - io api
+|
+----------device
+
+
+READ-----------------|windows---read
+
+
+Socket :
+
+ It is entry and exit point of device io world.
+Socket isloates  kernal space and device drivers
+
+
+Blocking code in java:
+.....................
+
+blocking network socket app.
+
+package com.ibm.blocking;
+
+
+import java.io.*;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+
+public class BlockingEco {
+    public static void main(String[] args) throws Throwable {
+        //this api interally communicates network interface card
+        ServerSocket server = new ServerSocket();
+        server.bind(new InetSocketAddress(3000));
+        System.out.println("Blocking Socket : listening for new Request");
+        while (true) {   // <1>
+            Socket socket = server.accept();
+            //each incomming request(socket request) allocate in a separate thread
+            new Thread(clientHandler(socket)).start();
+        }
+    }
+
+    private static Runnable clientHandler(Socket socket) {
+        return () -> {
+
+            try (
+                    BufferedReader reader = new BufferedReader(
+                            new InputStreamReader(socket.getInputStream()));
+                    PrintWriter writer = new PrintWriter(
+                            new OutputStreamWriter(socket.getOutputStream()))) {
+                String line = "";
+                while (!"/quit".equals(line)) {
+                    line = reader.readLine();      // <2>
+                    System.out.println("~ " + line);
+                    writer.write(line + "\n");  // <3>
+                    writer.flush();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        };
+    }
+
+}
+
+
+Why not blocking?
+
+Blocking APIs waste resources, increase costs
+
+
+The main problem with the code above ,is that it allocates a new thread for each incoming connection
+and threads are anything but cheap resources. 
+
+A thread needs memory, and the more threads you have, the more you put pressure on the operating system kernel scheduler, as it needs to give CPU time to the thread
+
+ Input/output operations such as readLine and write may block the thread, meaning that it is being parked by the operating system. This happens for two reasons:
+
+A read operation may be waiting for data to arrive from the network.
+A write operation may have to wait for buffers to be drained if they are full from a previous write operation
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+Asynchronous programming with non-blocking I/O:
+
+Instead of waiting for I/O operations to complete, we can shift to non-blocking I/O.
+
+You may have already sampled this with the select function in C.
+
+
+The idea behind non-blocking I/O is to request a (blocking) operation, and move on to doing other tasks until the operation is ready.
+
+For example a non-blocking read may ask for up to 256 bytes over a network socket, and the execution thread does other things (like dealing with another connection) until data has been put into the buffers, ready for consumption in memory.
+
+In this model, many concurrent connections can be multiplexed on a single thread, as network latency typically exceeds the CPU time it takes to read incoming bytes.
+
+
+Low Level System calls for non blocking:
+
+I/O multiplexing
+I/O multiplexing is the the ability to perform I/O operations on multiple file descriptors. Input operations like read, accept and calls for receiving messages block when there is no incoming data. So, if an input call is made and it blocks, we may miss data from other file descriptors. To circumvent this, I/O multiplexing calls, viz., select, poll, and the epoll API calls, are provided. A process blocks on an I/O multiplexing call. When this call returns, the process is provided a set of file descriptors which are ready for I/O. And, the process can do I/O on these file descriptors before it goes for the next iteration of the I/O multiplexing call
+
+1.select
+2.poll
+3.  aio_read - asynchronous read
+
+1.select:
+select is a system call and application programming interface (API) in Unix-like and POSIX-compliant operating systems for examining the status of file descriptors of open input/output channels.
+
+select() allows a program to monitor multiple file descriptors,
+       waiting until one or more of the file descriptors become "ready" for
+       some class of I/O operation (e.g., input possible).  A file
+       descriptor is considered ready if it is possible to perform a
+       corresponding I/O operation (e.g., read(2), or a sufficiently small
+       write(2)) without blocking.
+
+
+       select() can monitor only file descriptors numbers that are less than
+       FD_SETSIZE; poll and epoll  do not have this limitation. 
+
+2.poll:
+poll is a POSIX system call to wait for one or more file descriptors to become ready for use
+poll, ppoll - wait for some event on a file descriptor.
+
+Select has lot of drawbacks.
+
+Poll is fundamentally is event driven.
+Poll listens for file descriptor events.
+
+
+https://man7.org/linux/man-pages/man2/poll.2.html
+
+Other advanced implementations:
+
+1.kqueue, 
+2.epoll, 
+3./dev/poll
+4.I/O completion ports
+
+
+
+epoll - I/O event notification facility
+
+-event poll api
+-monitors multiple file descriptors
+-specific to linux
+
+Kernel queue (kqueue)
+If you are programming with asynchronous (non-blocking) frameworks, then most likely this framework is using kernel polling APIs under the hood. Using an infinite loop, kernel polling APIs check for events and notify the caller when an event has occurred. 
+ For example when an HTTP request is fired, in each iteration of the loop a check is done to see if data already has returned from the server. 
+
+Linux uses epoll
+BSD and OSX use kqueue
+Windows uses IOCP
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+Event Loop:
+..........
+events are picked up solely from epoll and ‘dispatched’ on the same thread within each loop iteration to our request handler ‘app’.
+
+java and non blocking:
+......................
+
+Does java support non blocking apis?
+
+No!
+
+Yes from Java 7 called "Dolphin".
+
+Dolphin introduced experimental model for building fast disk io, called "NIO"-NONBlocking IO.
+
+
+NIO version: non blocking version
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
+import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.regex.Pattern;
+
+public class AsynchronousEcho {
+
+  public static void main(String[] args) throws IOException {
+    Selector selector = Selector.open();
+
+    ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+    serverSocketChannel.bind(new InetSocketAddress(3000));
+    serverSocketChannel.configureBlocking(false);
+    serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+
+    while (true) {
+      selector.select();
+      Iterator<SelectionKey> it = selector.selectedKeys().iterator();
+      while (it.hasNext()) {
+        SelectionKey key = it.next();
+        if (key.isAcceptable()) {
+          newConnection(selector, key);
+        } else if (key.isReadable()) {
+          echo(key);
+        } else if (key.isWritable()) {
+          continueEcho(selector, key);
+        }
+        it.remove();
+      }
+    }
+  }
+
+  private static class Context {
+    private final ByteBuffer nioBuffer = ByteBuffer.allocate(512);
+    private String currentLine = "";
+    private boolean terminating = false;
+  }
+
+  private static final HashMap<SocketChannel, Context> contexts = new HashMap<>();
+
+  private static void newConnection(Selector selector, SelectionKey key) throws IOException {
+    ServerSocketChannel serverSocketChannel = (ServerSocketChannel) key.channel();
+    SocketChannel socketChannel = serverSocketChannel.accept();
+    socketChannel
+      .configureBlocking(false)
+      .register(selector, SelectionKey.OP_READ);
+    contexts.put(socketChannel, new Context());
+  }
+
+  private static final Pattern QUIT = Pattern.compile("(\\r)?(\\n)?/quit$");
+
+  private static void echo(SelectionKey key) throws IOException {
+    SocketChannel socketChannel = (SocketChannel) key.channel();
+    Context context = contexts.get(socketChannel);
+    try {
+      socketChannel.read(context.nioBuffer);
+      context.nioBuffer.flip();
+      context.currentLine = context.currentLine + Charset.defaultCharset().decode(context.nioBuffer);
+      if (QUIT.matcher(context.currentLine).find()) {
+        context.terminating = true;
+      } else if (context.currentLine.length() > 16) {
+        context.currentLine = context.currentLine.substring(8);
+      }
+      context.nioBuffer.flip();
+      int count = socketChannel.write(context.nioBuffer);
+      if (count < context.nioBuffer.limit()) {
+        key.cancel();
+        socketChannel.register(key.selector(), SelectionKey.OP_WRITE);
+      } else {
+        context.nioBuffer.clear();
+        if (context.terminating) {
+          cleanup(socketChannel);
+        }
+      }
+    } catch (IOException err) {
+      err.printStackTrace();
+      cleanup(socketChannel);
+    }
+  }
+
+  private static void cleanup(SocketChannel socketChannel) throws IOException {
+    socketChannel.close();
+    contexts.remove(socketChannel);
+  }
+
+  private static void continueEcho(Selector selector, SelectionKey key) throws IOException {
+    SocketChannel socketChannel = (SocketChannel) key.channel();
+    Context context = contexts.get(socketChannel);
+    try {
+      int remainingBytes = context.nioBuffer.limit() - context.nioBuffer.position();
+      int count = socketChannel.write(context.nioBuffer);
+      if (count == remainingBytes) {
+        context.nioBuffer.clear();
+        key.cancel();
+        if (context.terminating) {
+          cleanup(socketChannel);
+        } else {
+          socketChannel.register(selector, SelectionKey.OP_READ);
+        }
+      }
+    } catch (IOException err) {
+      err.printStackTrace();
+      cleanup(socketChannel);
+    }
+  }
+}
+
+Problmes with NIO :
+
+It is also important to note that like most JDK APIs, java.nio focuses solely on what it does (here, I/O APIs).
+ 
+->It does not provide higher-level protocol-specific helpers, like for writing HTTP clients and servers.
+ 
+->Also, java.nio does not prescribe a threading model, which is still important to properly utilize CPU 
+cores, handle asynchronous I/O events, and articulate the application processing logic.
+
+->This is why, in practice, developers rarely deal with Java NIO. 
+.......................................................................................................
+
+Networking libraries like Netty and Apache Mina solve the shortcomings of Java NIO
+
+
+NETTY
+
+ "Netty is a NIO client server framework which enables quick and easy development of network applications such as protocol servers and clients. "
+
+It greatly simplifies and streamlines network programming such as TCP and UDP socket server.
+
+Unified API for various transport types - blocking and non-blocking socket
+
+Based on a flexible and extensible event model which allows clear separation of concerns- The first Reactor Model on jvm.
+
+        	     Netty Application
+		             |
+          	         nettycore
+			     |
+			    nio
+			     |
+		            jvm
+
+Apache MINA 
+
+  Apache MINA is a network application framework which helps users develop high performance and high scalability network applications easily.
+ It provides an abstract event-driven asynchronous API over various transports such as TCP/IP and 
+
+UDP/IP via Java NIO.
+NIO framework library,
+client server framework library, or
+a networking socket library
+
+		    Apache MINA 
+		         |
+          	      Minaapi
+			 |
+			nio
+			 |
+		        jvm
+
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+
+Vertx:
+
+Birth of Vertx Project
+
+Vertx was born to simulate Node.js Capability on JVM.
+ initally it was named "Node.X"
+
+A core project, called vertx-core, provides the APIs for asynchronous programming, non-blocking I/O, streaming, and convenient access to networked protocols such as TCP, UDP, DNS, HTTP or Web Sockets,
+
+Vertx is industry ready , polyglot toolkit for building Non blocking,async,evented io applications.
+
+Vertx has been built on the top of Netty Core.
+
+			
+			VertxApplication
+			      |
+			Vertx Core Runtime
+			      |
+			   Netty Core
+			      |
+			     NIO
+			      |
+			     JVM
+
+
+Objective of VertX:
+   
+    100% non blocking applications on jvm.
+
+
+NonBlocking IO Apis
+
+
+                     NonBlocking IO Application -VertApplication
+   --------------------------------------------------------------------		
+    Vertx-FS  Vertx-TCP/IP  Vertx-UDP Vertx-HTTP Vertx-HTTPS Vertx-SMTP .....
+  ---------------------------------------------------------------------
+			      |
+			Vertx Core Runtime
+			      |
+			   Netty Core
+			      |
+			     NIO
+			      |
+			     JVM
+
+vert-x is poly glot:
+
+ Vertx is java technology platform, Vertx runs on JVM.
+ Fundamentally JVM supports multiple language as JVM Spec dt 2003.
+
+
+             Java PL  Groovy Kotlin  Javascript  scala Ruby
+	            	|       |     |         |         |     |
+      -------------------------------------------------------------
+                               .class
+				                         |
+   --------------------------------------------------------------------		
+       Vertx-FS  Vertx-TCP/IP  Vertx-UDP Vertx-HTTP Vertx-HTTPS Vertx-SMTP .....
+  ---------------------------------------------------------------------
+			      |
+			Vertx Core Runtime
+			      |
+			   Netty Core
+			      |
+			     NIO
+			      |
+			     JVM
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Vertx Runtime:
+
+Vertx run time is powered by non blocking io arch
+
+Vertx uses event loops
+ -event loops are used to process events which are dispatched by kernal.
+
+Event :
+
+  collection of event and data
+  How to read data?
+    you need handler- callback functions
+
+
+Vertx uses multi core event loop threads where as node js has only one event loop thread.
+
+Vertx uses per cpu core - 2 event loop, lets say i have 12 cores - 12 *2 =24 event loops.
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+Simple Vertx Event loop simulation:
+package com.ibm.eventloop;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.function.Consumer;
+
+public final class EventLoop {
+
+    //event queue
+    private final ConcurrentLinkedDeque<Event> events = new ConcurrentLinkedDeque<>();
+    //handler ; key-value binding
+    private final ConcurrentHashMap<String, Consumer<Object>> handlers = new ConcurrentHashMap<>();
+
+    public static void main(String[] args) {
+        EventLoop eventLoop = new EventLoop();
+
+        new Thread(() -> {
+            for (int n = 0; n < 6; n++) {
+                delay(1000);
+                //event dispatch
+                eventLoop.dispatch(new EventLoop.Event("tick", n));
+            }
+            eventLoop.dispatch(new EventLoop.Event("stop", null));
+        }).start();
+
+        new Thread(() -> {
+            delay(2500);
+            eventLoop.dispatch(new EventLoop.Event("hello", "beautiful world" + Thread.currentThread().getName()));
+            delay(800);
+            eventLoop.dispatch(new EventLoop.Event("hello", "beautiful universe"));
+        }).start();
+
+        eventLoop.dispatch(new EventLoop.Event("hello", "world!"));
+        eventLoop.dispatch(new EventLoop.Event("foo", "bar"));
+
+        //event registration with callbacks ; queue binding
+        eventLoop
+                .on("hello", s -> System.out.println("hello " + s))
+                .on("tick", n -> System.out.println("tick #" + n))
+                .on("stop", v -> eventLoop.stop())
+                .run();
+
+        System.out.println("Bye!");
+    }
+
+    private static void delay(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public EventLoop on(String key, Consumer<Object> handler) {
+        handlers.put(key, handler);
+        return this;
+    }
+
+    public void dispatch(Event event) {
+        events.add(event);
+    }
+
+    public void run() {
+        while (!(events.isEmpty() && Thread.interrupted())) {
+            if (!events.isEmpty()) {
+                Event event = events.pop();
+                if (handlers.containsKey(event.key)) {
+                    handlers.get(event.key).accept(event.data);
+                } else {
+                    System.err.println("No handler for key " + event.key);
+                }
+            }
+        }
+    }
+
+    public void stop() {
+        Thread.currentThread().interrupt();
+    }
+
+    public static final class Event {
+        private final String key;
+        private final Object data;
+
+        public Event(String key, Object data) {
+            this.key = key;
+            this.data = data;
+        }
+    }
+}
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Lets enter into vertx app; how to build non blocking and async apps:
+....................................................................
+
+Lets code:
+
+-Vertx Project setup
+
+-Maven Project
+-Gradle Project
+
+1.plain maven project, add vertx depedencies,You can use template entry method provided by vertx .
+
+2.Vertx Starter project
+
+3.Vertx maven cli project
+
+Vetx Distribution:
+
+-maven
+-zip
+
+download zip and extract and set path 
+C:\softwares\vert.x-3.9.2-full\vertx\bin
+
+
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+How to run vertx application?
+
+We have many ways:
+
+1.via maven.
+
+running:
+./mvnw clean compile exec:java
+or
+mvn clean compile exec:java
+
+2.fat jar running:
+
+you can pack vertx application into fat jar and you can
+
+
+1.Create fat jar
+
+mvnw clean package
+
+2. Running
+
+java -jar target/vertx-apps-1.0.0-SNAPSHOT-fat.jar
+
+
+3.via vertx command line.
+
+
+vertx run ProgrammName.java
+
+C:\session\ibm\Sep\vertx-apps\src\main\java\com\ibm\vertx>vertx run MainVerticle.java
+
+
+
+3.via vertx command line.
+
+
+vertx run ProgrammName.java
+
+C:\session\ibm\Sep\vertx-apps\src\main\java\com\ibm\vertx>vertx run MainVerticle.java
+SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+HTTP server started on port 8888
+Succeeded in deploying verticle
+
+
+4.via coding - to be discussed later
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+Vertx apps:
+
+vertx application can be small to big enterprise microservice application.
+
+Like spring , starts with spring-core , after that ,spring-mvc,spring-data....(modules
+
+Vertx also begins modules
+
+vertx-core ,vertx-web,vertx-data..............
+
+vertx-core:
+..........
+........................................................................................................
+
+Core Vertx Concepts:
+....................
+
+1.Vertx Instance , so Called "Vertx Engine". === Spring Container
+2.Verticles ; so called an Object through which you can create apps.
+
+io.vertx.core package is core package
+
+Vertx Instance:
+
+ It is Object,Container Object. like Spring Container.
+
+-it is entry and exit point of vertx application.
+-on jvm(single) process can have single vertx instance.
+-vertx can host other objects.
+
+To create an instance of this class you can use the static factory methods:
+
+ vertx(), 
+ vertx(io.vertx.core.VertxOptions) 
+ clusteredVertx(io.vertx.core.VertxOptions, Handler).
+
+Vertx Instance can do 
+
+Creating TCP clients and servers
+Creating HTTP clients and servers
+Creating DNS clients
+Creating Datagram sockets
+Setting and cancelling periodic and one-shot timers
+Getting a reference to the event bus API
+Getting a reference to the file system API
+Getting a reference to the shared data API
+Deploying and undeploying verticles
+
+
+
+How to create vertx instance?
+package com.ibm.vertx.core;
+
+import io.vertx.core.Vertx;
+
+public class VertxInstanceCreation {
+  public static void main(String[] args) {
+    //create vertx instance
+    Vertx vertxInstance = Vertx.vertx();
+    System.out.println(vertxInstance.getClass().getName());
+
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+Verticle:
+  -It is java object
+  -It can be deployed and undeployed on vertx instance.
+  -It is based on design pattern called "Actor-like Model"
+  -Verticles are bound to "Event loop" , are processed by event loop threads.
+
+Verticle is interface which provides life cycle methods 
+  -init
+  -start - called when verticle during deployment
+  -stop  - called when verticles during undeployment
+
+How to use Verticle?
+
+ AbstractVerticle is base class for creating our own verticles.
+
+
+eg:
+ if you are going to implement servlet , 
+
+public class MyServlet extends HttpServlet{
+
+  init  
+  doGet
+  doPost
+  destroy
+}
+
+
+package com.ibm.vertx.core;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Context;
+import io.vertx.core.Vertx;
+
+public class HelloWorldVerticle extends AbstractVerticle {
+
+  //life cycle methods
+  @Override
+  public void init(Vertx vertx, Context context) {
+    super.init(vertx, context);
+    System.out.println("init");
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    System.out.println("start");
+  }
+
+  @Override
+  public void stop() throws Exception {
+    super.stop();
+    System.out.println("stop");
+  }
+}
+
+How to deploy(run) the above code?
+
+if you want to run any code, you need entry point-main method.
+
+vertx provides entry method-main method called "Launcher"
+
+Launcher is a program, which has built in main method.
+
+In general , lanucher is "vertx" runtime command only
+
+
+in pom.xml we have lanucher configuration.
+
+  <properties>
+    <main.verticle>com.ibm.vertx.core.HelloWorldVerticle</main.verticle>
+  </properties>
+
+
+   <manifestEntries>
+           <Main-Class>io.vertx.core.Launcher</Main-Class>
+           <Main-Verticle>${main.verticle}</Main-Verticle>
+    </manifestEntries>
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+
+Verticle Deployment via coding:
+...............................
+
+In vertx , verticle deployment itself is async, which is non blocking.
+
+Runner class ; it is utility class provided by vertx for deployment, it is very usefull for dev.
+
+
+How to use Verticle?
+
+ AbstractVerticle is base class for creating our own verticles.
+
+
+eg:
+ if you are going to implement servlet , 
+
+public class MyServlet extends HttpServlet{
+
+  init  
+  doGet
+  doPost
+  destroy
+}
+
+
+package com.ibm.vertx.core;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Context;
+import io.vertx.core.Vertx;
+
+public class HelloWorldVerticle extends AbstractVerticle {
+
+  //life cycle methods
+  @Override
+  public void init(Vertx vertx, Context context) {
+    super.init(vertx, context);
+    System.out.println("init");
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    System.out.println("start");
+  }
+
+  @Override
+  public void stop() throws Exception {
+    super.stop();
+    System.out.println("stop");
+  }
+}
+
+How to deploy(run) the above code?
+
+if you want to run any code, you need entry point-main method.
+
+vertx provides entry method-main method called "Launcher"
+
+Launcher is a program, which has built in main method.
+
+In general , lanucher is "vertx" runtime command only
+
+
+in pom.xml we have lanucher configuration.
+
+  <properties>
+    <main.verticle>com.ibm.vertx.core.HelloWorldVerticle</main.verticle>
+  </properties>
+
+
+   <manifestEntries>
+           <Main-Class>io.vertx.core.Launcher</Main-Class>
+           <Main-Verticle>${main.verticle}</Main-Verticle>
+    </manifestEntries>
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+In vertx , verticle deployment itself is async, which is non blocking.
+
+package com.ibm.vertx.core;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Vertx;
+
+public class GreeterVerticle extends AbstractVerticle {
+  public static void main(String[] args) {
+    //Get Vertx(container)
+    Vertx vertxIns = Vertx.vertx();
+    //you have method called deploy
+    //way -1 - create verticle object new
+    vertxIns.deployVerticle(new GreeterVerticle());
+    //way -2 : passing class name
+    vertxIns.deployVerticle(GreeterVerticle.class.getName());
+    //way 3; string class name
+    vertxIns.deployVerticle("com.ibm.vertx.core.GreeterVerticle");
+    
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    System.out.println("Greeter start");
+  }
+}
+
+Vertx team has provided a utility class for verticle deployment?
+   Vertx vertxIns = Vertx.vertx(); - syntax not necessary.
+
+
+******************************************************************************************
+
+package com.ibm.vertx.core.verticles;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.example.util.Runner;
+
+
+public class MainVerticle extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(MainVerticle.class);
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    System.out.println("Main Verticle");
+    vertx.deployVerticle(UserVerticle.class.getName());
+  }
+}
+	
+package com.ibm.vertx.core.verticles;
+
+import io.vertx.core.AbstractVerticle;
+
+public class UserVerticle extends AbstractVerticle {
+  @Override
+  public void start() throws Exception {
+    super.start();
+    System.out.println("User Verticle");
+  }
+}
+
+Vert x and Event loop:
+
+Vertx process events comming from kernal space , via event loop, still it is while loop but that loop bound to a thread , that thread is called event loop thread.
+
+Every verticle by default is bound to a thread Event loop thread.
+
+Verticle can handle events and process them.
+
+How many event loops are there in vertx?
+
+In node js , only one event loop.
+
+In vertx per cpu core 2 event loops.
+
+eg , if i have 12 cores - 24 event loop.
+
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+package com.ibm.vertx.future;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.example.util.Runner;
+
+class FutureVerticle extends AbstractVerticle {
+
+  //empty future
+  public Future<Void> getEmptyFuture() {
+    //future object creation
+    Future<Void> future = Future.future();
+    //encapuslate data , no data here
+    future.complete();
+    return future;
+  }
+
+  public Future<String> getSuccessFuture() {
+    //future object creation
+    Future<String> future = Future.future();
+    //encapuslate data , no data here
+    future.complete("Hello ? How are you ?");
+    return future;
+  }
+
+  public Future<String> getFailureFuture() {
+    //future object creation
+    Future<String> future = Future.future();
+    //encapuslate data , no data here
+    future.fail("SOmething went wrong");
+    return future;
+  }
+
+  //some logic
+  public Future<String> someLogic() {
+    boolean isValid = false;
+    //future object creation
+    Future<String> future = Future.future();
+    if (isValid) {
+      //encapuslate data , no data here
+      future.complete("This is valid");
+    } else {
+      future.fail(new RuntimeException("This is invalid"));
+    }
+    return future;
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    //registration
+    if (getEmptyFuture().succeeded()) {
+      System.out.println("Future is success");
+    }
+    //register with sethandler ; annmous class
+    getSuccessFuture().setHandler(new Handler<AsyncResult<String>>() {
+      @Override
+      public void handle(AsyncResult<String> asyncResult) {
+        //grab result
+        if (asyncResult.succeeded()) {
+          System.out.println(asyncResult.result());
+        }
+      }
+    });
+    getSuccessFuture().setHandler(asyncResult -> {
+      //grab result
+      if (asyncResult.succeeded()) {
+        System.out.println(asyncResult.result());
+      }
+    });
+    getSuccessFuture().onComplete(asyncResult -> {
+      //grab result
+      if (asyncResult.succeeded()) {
+        System.out.println(asyncResult.result());
+      }
+    });
+    getSuccessFuture().onSuccess(response -> {
+      System.out.println(response);
+    });
+    getSuccessFuture().onSuccess(System.out::println);
+    ///////////////////handle failures
+    getFailureFuture().onComplete(asyncResult -> {
+      if (asyncResult.failed()) {
+        System.out.println(asyncResult.cause());
+      }
+    });
+    getFailureFuture().onFailure(System.out::println);
+    //////////////////////////////////////////////////////////////////////////////////////////
+    someLogic().onComplete(asyncResult -> {
+      if (asyncResult.succeeded()) {
+        System.out.println(asyncResult.result());
+      } else {
+        System.out.println(asyncResult.cause());
+      }
+    });
+    someLogic()
+      .onSuccess(System.out::println)
+      .onFailure(System.out::println);
+
+  }
+}
+
+
+public class FututureMainVerticle extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(FututureMainVerticle.class);
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    vertx.deployVerticle(new FutureVerticle());
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
