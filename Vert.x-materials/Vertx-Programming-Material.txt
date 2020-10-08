@@ -1109,26 +1109,904 @@ public class FututureMainVerticle extends AbstractVerticle {
 }
 
 
+Async Wrapper Object : Promise:
+...............................
+
+Promise is async abstraction largly promoted by javascript community.
+
+Dont Compare  javascript Promises with Vertx Promises , because both are different.
+
+Promise is "semantically meaningfull abstraction" for handling asyn results.
+
+Many times developers confuse with java Future and Vertx Future.
+
+Promises can't be processed directly with onComplete/setHandler/OnSuccecc/onFailure apis.
+
+Promises must be converted into Future before processing.
+
+
+package com.ibm.vertx.core.asyncwrappers;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Future;
+import io.vertx.core.Promise;
+import io.vertx.example.util.Runner;
+
+class PromiseVerticle extends AbstractVerticle {
+
+  //how to send success results : can be any type
+  public Promise<String> getSuccessPromise() {
+    //create Future object
+    Promise<String> promise = Promise.promise();
+    //empty response injection
+    promise.complete("Hello I am Promise result!!");
+    return promise;
+  }
+
+  public Future<String> getSuccessPromise1() {
+    //create Future object
+    Promise<String> promise = Promise.promise();
+    //empty response injection
+    promise.complete("Hello I am Promise result!!");
+    return promise.future();
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    //convert promise into future
+    getSuccessPromise().future().onSuccess(System.out::println);
+    getSuccessPromise1().onSuccess(System.out::println);
+
+  }
+}
+
+
+public class PromiseMainVerticle extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(PromiseMainVerticle.class);
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    vertx.deployVerticle(new PromiseVerticle());
+  }
+}
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+Legacy Application flow : object oriented and sync flow
+  
+dependent operations  , should happen one by one
+
+Object oriented seq work flow
+
+ 1.connect db - connect()
+ 2.Query results -queryResult()
+ 3.Formate results -formateResult()
+ 4.add results into http response stream - write()
+ 5.send/flush the results to clients - send()
+
+ Connection con=DriverManager.getConnection("connectionstring");
+ QueryResult queryres=con.queryResult()
+ List<T> results = formatResult(queryres)
+ response.write(results)
+ reponse.end();
+ .......................................................................................
+How the above task can be done in functional programming ; vertx?
+
+
+Functional sequential workflow:
+
+ Nested Callback : Callback chaining: functional style
+
+  Handler function is called as callback function
+
+"The out put of one callback is input to the another callback : nested callbacks
+
+   cb1
+     --cb2
+         -cb3
+            --cbN
+              --process the result.
+
+
+Use case :
+
+ getUser ----|if data is available
+			|	|
+			|
+			      	 call login method with  output of getUser
+                        |
+		     if not
+			 -error
+
+Note : output of one function will be input to another function.
+
+
+package com.ibm.vertx.core.asyncwrappers;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Future;
+import io.vertx.core.Promise;
+import io.vertx.example.util.Runner;
+
+class CallbackVerticle extends AbstractVerticle {
+
+  //getUser--->login--->other---untill you get final
+
+  public Future<String> getUser() {
+    Promise promise = Promise.promise();
+    String userName = "admin";
+    if (userName != null) {
+      //output
+      promise.complete(userName);
+    } else {
+      promise.fail(new RuntimeException("User not found"));
+    }
+    return promise.future();
+  }
+
+  public Future<String> login(String userName) {
+    Promise promise = Promise.promise();
+    if (userName.equals("admin")) {
+      //output
+      promise.complete("login success");
+    } else {
+      promise.fail(new RuntimeException("login failed"));
+    }
+    return promise.future();
+  }
+
+  public Future<String> showPage(String status) {
+    Promise promise = Promise.promise();
+    if (status.equals("login success")) {
+      //output
+      promise.complete("Welcome to Admin page");
+    } else {
+      promise.fail(new RuntimeException("You are inside Guest page"));
+    }
+    return promise.future();
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    getUser().onComplete(userasync -> {
+      if (userasync.succeeded()) {
+        System.out.println("getUser is called");
+        login(userasync.result()).onComplete(loginasync -> {
+          if (loginasync.succeeded()) {
+            System.out.println("login is called");
+            showPage(loginasync.result()).onComplete(pageasync -> {
+              System.out.println("get page is called");
+              if (pageasync.succeeded()) {
+                System.out.println(pageasync.result());
+              } else {
+                System.out.println(pageasync.cause());
+              }
+            });
+          } else {
+            System.out.println(loginasync.cause());
+          }
+        });
+      } else {
+        System.out.println(userasync.cause());
+      }
+    });
+  }
+}
+
+public class CallbackChainingVerticle extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(CallbackChainingVerticle.class);
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    vertx.deployVerticle(new CallbackVerticle());
+  }
+}
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+callback Hell:
+ The way we write nested callbacks.
+ doom of pyrmid
+
+    getUser().onComplete(userasync -> {
+      if (userasync.succeeded()) {
+        System.out.println("getUser is called");
+        login(userasync.result()).onComplete(loginasync -> {
+          if (loginasync.succeeded()) {
+            System.out.println("login is called");
+            showPage(loginasync.result()).onComplete(pageasync -> {
+              System.out.println("get page is called");
+              if (pageasync.succeeded()) {
+                System.out.println(pageasync.result());
+              } else {
+                System.out.println(pageasync.cause());
+              }
+            });
+          } else {
+            System.out.println(loginasync.cause());
+          }
+        });
+      } else {
+        System.out.println(userasync.cause());
+      }
+    });
+
+Look at the above code , ask your self
+
+1.is it easy to understand?
+2.is it easy to scale
+3.is it easy to maintain
+
+No!
+
+This is called callback hell; The callback hell is way of writing complex callbacks.
 
 
 
+can we escape from callback hell problem, how to write better callback based programming?
+
+Yes! 
+
+
+Solution to callback Hell:
+..........................
+compose method of Future & Promise 
+
+
+package com.ibm.vertx.core.asyncwrappers;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Future;
+import io.vertx.core.Promise;
+import io.vertx.example.util.Runner;
+
+class CallbackHellVerticle extends AbstractVerticle {
+
+  public Future<String> getUser() {
+    Promise<String> promise = Promise.promise();
+    //biz
+    String userName = "admin";
+    if (userName != null) {
+      promise.complete(userName);
+    } else {
+      promise.fail("User not found");
+    }
+
+    return promise.future();
+  }
+
+  public Future<String> login(String userName) {
+    Promise<String> promise = Promise.promise();
+    //biz
+    if (userName.equals("admin")) {
+      promise.complete("login success");
+    } else {
+      promise.fail("login failed");
+    }
+    return promise.future();
+  }
+
+  public Future<String> page(String status) {
+    Promise<String> promise = Promise.promise();
+    //biz
+    if (status.equals("login success")) {
+      promise.complete("Admin Page");
+    } else {
+      promise.fail("Guest Page");
+    }
+    return promise.future();
+  }
+
+  public void callbackHellCode() {
+    getUser().onComplete(event -> {
+      if (event.succeeded()) {
+        System.out.println("getUser is called ");
+        login(event.result()).onComplete(loginevent -> {
+          if (loginevent.succeeded()) {
+            System.out.println("login is called");
+            page(loginevent.result()).onComplete(pageevent -> {
+              System.out.println("Page is called");
+              if (pageevent.succeeded()) {
+                System.out.println(pageevent.result());
+              } else {
+                System.out.println(pageevent.cause());
+              }
+            });
+          } else {
+            System.out.println(loginevent.cause());
+          }
+        });
+      } else {
+        System.out.println(event.cause());
+      }
+    });
+  }
+
+  //compose method of Future / Promise eleminate the complexity of callback nesting
+  public void compose() {
+    getUser()
+      .compose(userName -> {
+        return login(userName);
+      })
+      .compose(status -> {
+        return page(status);
+      })
+      .onSuccess(System.out::println)
+      .onFailure(System.out::println);
+
+    getUser()
+      .compose(userName -> login(userName))
+      .compose(status -> page(status))
+      .onSuccess(System.out::println)
+      .onFailure(System.out::println);
+    getUser()
+      .compose(this::login)
+      .compose(this::page)
+      .onSuccess(System.out::println)
+      .onFailure(System.out::println);
+
+  }
+
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    //callbackHellCode();
+    compose();
+  }
+}
+
+
+public class CallbackHellSoultion extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(CallbackHellSoultion.class);
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    vertx.deployVerticle(new CallbackHellVerticle());
+  }
+}
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+Data Formate in vertx:
+
+1.Buffer
+2.JSON object
+
+Buffer
+JSON
+
+
+Buffer:
+
+1.Verticles running in vertx often need to process blocks of data.
+2.For instance , data from an incomming http request, data loaded from the disk or data generated as response to http request etc.
+3.A Buffer in vertx can hold binary data.
+4.Buffer is similar to byte array, except the buffer can expand its capacity dynamically  as you write data to it.
+
+
+package com.ibm.vertx.core.dataformat;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.example.util.Runner;
+
+public class BufferMainVerticle extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(BufferMainVerticle.class);
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    Buffer buffer = Buffer.buffer();
+    buffer.appendString("Hello");
+    buffer.appendString("Hai");
+    buffer.appendString("Welcome");
+    buffer.appendString("How are you");
+    buffer.appendString("this is binary data");
+    System.out.println(buffer.length());
+    System.out.println(buffer.toString());
+  }
+}
+/////////////////////////////////////////////////////////////////////////////////////////////
+Non blocking apis:
+
+->Creating TCP clients and servers
+->Creating HTTP clients and servers
+->Creating DNS clients
+->Creating Datagram sockets
+->Setting and cancelling periodic and one-shot timers
+->Getting a reference to the event bus API
+->Getting a reference to the file system API
+
+
+Timer api:
+.........
+
+
+package com.ibm.vertx.core.dataformat;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Future;
+import io.vertx.core.Promise;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
+import io.vertx.example.util.Runner;
+
+public class JsonVerticle extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(JsonVerticle.class);
+  }
+
+  public void createSimpleJSON() {
+
+    JsonObject profile = new JsonObject();
+    //add data; types
+    profile.put("id", 1);
+    profile.put("name", "Subramanian");
+    profile.put("status", true);
+    System.out.println(profile.getInteger("id"));
+    System.out.println(profile.getString("name"));
+    System.out.println(profile.getBoolean("status"));
+    System.out.println(profile.encodePrettily());
+  }
+
+  public void createfluentJSON() {
+    JsonObject profile = new JsonObject()
+      .put("id", 1)
+      .put("name", "ram")
+      .put("status", true);
+    System.out.println(profile.encodePrettily());
+  }
+
+  public void createNestedJSON() {
+    JsonObject profile = new JsonObject()
+      .put("id", 1)
+      .put("name", "Subramanian")
+      .put("status", true)
+      .put("address", new JsonObject().put("street", "10th street").put("city", "coimbatore"));
+    System.out.println(profile.encodePrettily());
+
+  }
+
+  public void createJSONArray() {
+    JsonObject profile = new JsonObject()
+      .put("id", 1)
+      .put("name", "Subramanian")
+      .put("status", true)
+      .put("address", new JsonObject()
+        .put("city", "Coimbatore")
+        .put("state", "Tamil Nadu"));
+
+    JsonArray jsonArray = new JsonArray()
+      .add(profile)
+      .add(new JsonObject()
+        .put("id", 2)
+        .put("name", "Ram")
+        .put("status", true)
+        .put("address", new JsonObject()
+          .put("city", "Chennai")
+          .put("state", "Tamil Nadu")));
+    System.out.println(jsonArray.encodePrettily());
+
+  }
+
+  public void mergeJson(JsonObject jsonObject) {
+    JsonObject config = new JsonObject()
+      .put("http.port", 8080)
+      .mergeIn(jsonObject);
+    System.out.println(config.encodePrettily());
+  }
+
+  public Future<JsonObject> getJsonFuture() {
+    Promise<JsonObject> jsonPromise = Promise.promise();
+    JsonObject profile = new JsonObject()
+      .put("id", 1)
+      .put("name", "Subramanian")
+      .put("status", true)
+      .put("address", new JsonObject()
+        .put("city", "Coimbatore")
+        .put("state", "Tamil Nadu"));
+    jsonPromise.complete(profile);
+
+    return jsonPromise.future();
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    createSimpleJSON();
+    createfluentJSON();
+    createNestedJSON();
+    createJSONArray();
+    mergeJson(new JsonObject().put("host", "localhost").put("ssl", true).put("http.port", 3000));
+    getJsonFuture().onComplete(jsonObjectAsyncResult -> {
+      if(jsonObjectAsyncResult.succeeded()){
+        System.out.println(jsonObjectAsyncResult.result().encodePrettily());
+      }
+    });
+  }
+}
+
+package com.ibm.vertx.core.async.timers;
+
+import io.vertx.core.*;
+import io.vertx.core.json.JsonObject;
+import io.vertx.example.util.Runner;
+
+import java.util.Date;
+
+class TimersVerticle extends AbstractVerticle {
+
+  public void delay(long duration) {
+    //timer api;
+    vertx.setTimer(duration, timerHandler -> {
+      //todo any task after timemout
+      System.out.println("hello, i am delayed person");
+    });
+  }
+
+  public Future<JsonObject> delayWithData(long duration) {
+    Promise<JsonObject> promise = Promise.promise();
+
+    vertx.setTimer(duration, timerHandler -> {
+      //todo any task after timemout
+      promise.complete(new JsonObject().put("id", 1).put("name", "subramaian"));
+    });
+    return promise.future();
+  }
+
+  public void heartBeat(Handler<AsyncResult<Date>> aHandler) {
+    long timerid = vertx.setPeriodic(1000, phandler -> {
+      //System.out.println(new Date());
+      aHandler.handle(Future.succeededFuture(new Date()));
+    });
+    vertx.setTimer(10000, timerHandler -> {
+      System.out.println("Stopping timer");
+      vertx.cancelTimer(timerid);
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    System.out.println("start");
+    delay(1000);
+    delayWithData(5000).onComplete(jsonObjectAsyncResult -> {
+      if (jsonObjectAsyncResult.succeeded()) {
+        System.out.println(jsonObjectAsyncResult.result().encodePrettily());
+      }
+    });
+    heartBeat(dateAsyncResult -> System.out.println(dateAsyncResult.result()));
+    System.out.println("end");
+  }
+}
+
+public class TimersMainVerticle extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(TimersMainVerticle.class);
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    vertx.deployVerticle(new TimersVerticle());
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Non blocking HTTP APPLICATION: Web Application:
+..............................................
+
+package com.ibm.vertx.core.http;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.http.HttpServer;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.example.util.Runner;
+
+
+public class SimpleBasicHttpServer extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(SimpleBasicHttpServer.class);
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    HttpServer server = vertx.createHttpServer();
+
+    //handle client request async
+    server.requestHandler(request -> {
+      //send a reponse
+      HttpServerResponse response = request.response();
+      response.end("Hello Http Server");
+    });
+
+
+    //start server
+    server.listen(3000, httpServerAsyncResult -> {
+      if (httpServerAsyncResult.succeeded()) {
+        System.out.println("Server is Ready at " + httpServerAsyncResult.result().actualPort());
+      } else {
+        System.out.println("Server failed " + httpServerAsyncResult.cause());
+      }
+    });
+
+
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+HTTP Application:
+................
+
+How to build non blocking web application
+
+vertx offers low level api called
+ vertx.createHttpServer()
+
+Objects:
+
+1.HttpServer
+2.HttpServerRequest
+3.HttpServerResponse
+
+All these objects are created already by vertx and only we use references.
+
+
+package com.ibm.vertx.core.http;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.http.HttpServer;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.example.util.Runner;
+
+public class BasicHttpServer extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(BasicHttpServer.class);
+  }
+
+  public void createServer() {
+    //create server object
+    HttpServer httpServer = vertx.createHttpServer();
+
+    //request handling
+    httpServer.requestHandler(request -> {
+      HttpServerResponse response = request.response();
+      //send a response
+      response.end("Hello Vertx Web Server");
+    });
+
+public void createFluentServer() {
+    vertx.createHttpServer()
+      .requestHandler(request -> request.response().end("Hello Vertx Web Server"))
+      .listen(3001, serverHandler -> {
+        if (serverHandler.succeeded()) {
+          System.out.println("Server is ready at " + serverHandler.result().actualPort());
+        } else {
+          System.out.println(serverHandler.cause());
+        }
+      });
+  }
+
+    //start the server
+    httpServer.listen(3000, serverHandler -> {
+      if (serverHandler.succeeded()) {
+        System.out.println("Server is ready at " + serverHandler.result().actualPort());
+      } else {
+        System.out.println(serverHandler.cause());
+      }
+    });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    //createServer();
+    createFluentServer();
+
+  }
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+package com.ibm.vertx.core.http;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.http.HttpServer;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.example.util.Runner;
+
+public class SendHtml extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(SendHtml.class);
+  }
+
+
+  public void createFluentServer() {
+    vertx.createHttpServer()
+      .requestHandler(request -> request
+        .response()
+        .putHeader("content-type", "text/html")
+        .end("<html><body><h1>Hello from vert.x!</h1></body></html>"))
+      .listen(3001, serverHandler -> {
+        if (serverHandler.succeeded()) {
+          System.out.println("Server is ready at " + serverHandler.result().actualPort());
+        } else {
+          System.out.println(serverHandler.cause());
+        }
+      });
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    //createServer();
+    createFluentServer();
+  }
+}
+
+
+Sending JSON Response:
+......................
+
+package com.ibm.vertx.core.http;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.http.HttpServer;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.JsonObject;
+import io.vertx.example.util.Runner;
+
+public class SendJson extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(SendJson.class);
+  }
+  public void sendJson() {
+    //create server
+    HttpServer httpServer = vertx.createHttpServer();
+    //start handling request-response in non blocking
+    httpServer.requestHandler(request -> {
+      HttpServerResponse response = request.response();
+      response.putHeader("content-type", "application/json");
+      JsonObject message = new JsonObject()
+        .put("name", "Subramanian")
+        .put("message", "welcome");
+      response.end(message.encodePrettily());
+    });
+    //start the server
+    httpServer.listen(3000, handler -> {
+      if (handler.succeeded()) {
+        System.out.println("Server is up " + handler.result().actualPort());
+      } else {
+        System.out.println("Server is down!!!" + handler.cause());
+      }
+    });
+  }
+  @Override
+  public void start() throws Exception {
+    super.start();
+    sendJson();
+  }
+}
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+RESTFull web services
+Dynamic web application.
+
+
+/api/products  - GET,POST,DELETE,PUT,...
+/api/customers
+/api/accounts
+
+
+package com.ibm.vertx.core.http;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServer;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
+import io.vertx.example.util.Runner;
+
+public class RESTEndPointVerticle extends AbstractVerticle {
+  public static void main(String[] args) {
+    Runner.runExample(RESTEndPointVerticle.class);
+  }
+
+  @Override
+  public void start() throws Exception {
+    super.start();
+    HttpServer server = vertx.createHttpServer();
+
+    //handle client request async
+    server.requestHandler(request -> {
+      //send a reponse
+      if (request.method() == HttpMethod.GET && request.path().equals("/api/message")) {
+        JsonObject message = new JsonObject().put("message", "Hello");
+        request
+          .response()
+          .putHeader("content-type", "application/json")
+          .setStatusCode(200)
+          .end(message.encodePrettily());
+      } else if (request.method() == HttpMethod.GET && request.path().equals("/api/users")) {
+        JsonArray users = new JsonArray();
+        users.add(new JsonObject().put("id", 1).put("name", "subramanian"))
+          .add(new JsonObject().put("id", 2).put("name", "Smith"));
+        request
+          .response()
+          .putHeader("content-type", "application/json")
+          .setStatusCode(200)
+          .end(users.encodePrettily());
+      }
+
+    });
+
+
+    //start server
+    server.listen(3000, httpServerAsyncResult -> {
+      if (httpServerAsyncResult.succeeded()) {
+        System.out.println("Server is Ready at " + httpServerAsyncResult.result().actualPort());
+      } else {
+        System.out.println("Server failed " + httpServerAsyncResult.cause());
+      }
+    });
+  }
+}
+
+Basic Vert.x-Web concepts
+...........................
+
+A Router is one of the core concepts of Vert.x-Web. It’s an object which maintains zero or more Routes .
+
+A router takes an HTTP request and finds the first matching route for that request, and passes the request to that route.
+
+The route can have a handler associated with it, which then receives the request. You then do something with the request, and then, either end it or pass it to the next matching handler.
 
 
 
+HttpServer server = vertx.createHttpServer();
+
+Router router = Router.router(vertx);
+
+router.route().handler(routingContext -> {
+  // This handler will be called for every request
+  HttpServerResponse response = routingContext.response();
+  response.putHeader("content-type", "text/plain");
+
+  // Write to the response and end it
+  response.end("Hello World from Vert.x-Web!");
+});
+
+server.requestHandler(router).listen(8080);
 
 
+It basically does the same thing as the Vert.x Core HTTP server hello world example from the previous section, but this time using Vert.x-Web.
 
+We create an HTTP server as before, then we create a router. Once we’ve done that we create a simple route with no matching criteria so it will match all requests that arrive on the server.
 
+We then specify a handler for that route. That handler will be called for all requests that arrive on the server.
 
+The object that gets passed into the handler is a RoutingContext - this contains the standard Vert.x HttpServerRequest and HttpServerResponse but also various other useful stuff that makes working with Vert.x-Web simpler.
 
+For every request that is routed there is a unique routing context instance, and the same instance is passed to all handlers for that request.
 
+Once we’ve set up the handler, we set the request handler of the HTTP server to pass all incoming requests to handle.
 
-
-
-
-
-
-
+So, that’s the basics. Now we’ll look at things in more detail:
 
 
 

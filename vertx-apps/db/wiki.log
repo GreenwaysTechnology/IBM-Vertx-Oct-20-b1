@@ -1,0 +1,2 @@
+/*C3*/SET SCHEMA PUBLIC
+create table if not exists Pages (Id integer identity primary key, Name varchar(255) unique, Content clob)
