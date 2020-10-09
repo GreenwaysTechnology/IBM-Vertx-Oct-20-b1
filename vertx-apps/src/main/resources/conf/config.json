@@ -1,0 +1,5 @@
+{
+  "appname": "IBM Vertx Application",
+  "version": "1.0.0",
+  "http.port": 3001
+}

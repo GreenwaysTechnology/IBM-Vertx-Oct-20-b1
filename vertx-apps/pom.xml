@@ -19,7 +19,7 @@
 
     <vertx.version>3.9.3</vertx.version>
     <junit-jupiter.version>5.4.0</junit-jupiter.version>
-    <main.verticle>com.ibm.vertx.core.HelloWorldVerticle</main.verticle>
+    <main.verticle>com.ibm.vertx.containers.HelloVerticle</main.verticle>
   </properties>
 
   <dependencyManagement>
@@ -38,6 +38,28 @@
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-web-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-rx-java2</artifactId>
+      <version>3.9.3</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-service-proxy</artifactId>
+      <version>3.9.2</version>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-codegen</artifactId>
+      <version>3.9.2</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-reactive-streams</artifactId>
+      <version>3.9.3</version>
     </dependency>
     <dependency>
       <groupId>io.vertx</groupId>
@@ -61,6 +83,17 @@
       <groupId>io.vertx</groupId>
       <artifactId>vertx-config</artifactId>
     </dependency>
+
+    <dependency>
+      <groupId>com.hazelcast</groupId>
+      <artifactId>hazelcast</artifactId>
+      <version>3.12.2</version>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-hazelcast</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-web</artifactId>
@@ -68,6 +101,11 @@
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-service-discovery</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-service-discovery-backend-zookeeper</artifactId>
+      <version>3.9.2</version>
     </dependency>
     <dependency>
       <groupId>io.vertx</groupId>
